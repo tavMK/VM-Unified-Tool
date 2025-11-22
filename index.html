@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VM Unified Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loading-overlay" class="hidden">Processing...</div>
+
+    <div id="login-view">
+        <div class="glass-panel login-card">
+            <h1 class="app-title">VM UNIFIED TOOL</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">v6.1 Role Fix</p>
+            <form onsubmit="handleLogin(event)">
+                <input type="text" id="username" placeholder="Username" required style="margin-bottom: 15px;">
+                <input type="password" id="password" placeholder="Password" required style="margin-bottom: 25px;">
+                <button type="submit" class="btn btn-primary" style="width:100%">SECURE LOGIN</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-wrapper" class="hidden">
+        <header>
+            <div class="app-title">VM TOOL</div>
+            <div style="text-align: right;">
+                <div id="display-username" style="font-weight:bold; color:var(--primary-purple)">User</div>
+                <div id="display-role" style="font-size: 12px; color: var(--text-secondary)">Role</div>
+                <a href="#" onclick="logout()" style="color: var(--danger-red); font-size: 12px; text-decoration:none; font-weight:bold;">Logout</a>
+            </div>
+        </header>
+
+        <div class="container">
+            
+            <div id="dashboard-view" class="view-section">
+                <div class="dashboard-grid">
+                    <div class="glass-panel dash-card" onclick="switchView('datasheet-menu')">
+                        <div style="font-size: 40px; margin-bottom: 15px;">📊</div>
+                        <h3 style="color:var(--text-primary);">Shipment Data Sheet</h3>
+                        <p style="color: var(--text-secondary); font-size: 14px;">Open Main Menu</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="datasheet-menu" class="view-section hidden">
+                <button class="btn btn-ghost" style="margin-bottom:20px;" onclick="switchView('dashboard-view')">← Back</button>
+                <h2 style="margin-bottom: 20px; color:var(--primary-purple);">Shipment Data Sheet Menu</h2>
+                
+                <div class="dashboard-grid">
+                    <div id="card-master" class="glass-panel dash-card" onclick="openAdminView()">
+                        <h3 style="color: var(--primary-purple)">👁 Master Data Sheet</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">View Full Database</p>
+                    </div>
+                    
+                    <div id="card-add" class="glass-panel dash-card" onclick="openForm('add')">
+                        <h3 style="color: var(--success-green)">+ Add New Plan</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">Create New Entry</p>
+                    </div>
+                    
+                    <div id="card-update" class="glass-panel dash-card" onclick="openForm('update')">
+                        <h3 style="color: var(--primary-purple)">✎ Update Plan</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">Edit Available Data Only</p>
+                    </div>
+                    
+                    <div id="card-filter" class="glass-panel dash-card" onclick="openFilterView()">
+                        <h3 style="color: #00bcd4">▼ Filter Fields</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">Sort & Filter Records</p>
+                    </div>
+                    
+                    <div id="card-delete" class="glass-panel dash-card" onclick="openForm('delete')">
+                        <h3 style="color: var(--danger-red)">✕ Delete Plan</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">Remove Data Permanently</p>
+                    </div>
+                    
+                    <div id="card-calc" class="glass-panel dash-card" onclick="openCalculator()">
+                        <h3 style="color: var(--warning-orange)">🧮 Calculator</h3>
+                        <p style="font-size:13px; color:var(--text-secondary);">Quick Math Tool</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-view" class="view-section hidden">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="color: var(--primary-purple);">Master Data Sheet</h2>
+                    <button class="btn btn-ghost" onclick="switchView('datasheet-menu')">Close</button>
+                </div>
+                <div id="master-table-wrapper" class="admin-table-container"></div>
+            </div>
+
+            <div id="filter-view" class="view-section hidden">
+                <div class="glass-panel" style="padding:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 style="color: #00bcd4;">Filter Fields</h2>
+                        <button class="btn btn-ghost" onclick="switchView('datasheet-menu')">Close</button>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+                        <select id="filter-column" style="width:150px;">
+                            <option value="status">Status</option>
+                            <option value="partNo">Part No</option>
+                            <option value="planDate">Date</option>
+                        </select>
+                        <input type="text" id="filter-value" placeholder="Value..." oninput="applyFilter()">
+                    </div>
+                    <div id="filter-results" class="admin-table-container"></div>
+                </div>
+            </div>
+
+            <div id="calculator-view" class="view-section hidden">
+                <div style="display:flex; justify-content:center;">
+                    <div class="glass-panel" style="width: 300px; padding: 20px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                            <h3>Calculator</h3>
+                            <button class="btn btn-ghost" onclick="switchView('datasheet-menu')">✕</button>
+                        </div>
+                        <input type="text" id="calc-display" readonly style="text-align:right; font-size:24px; margin-bottom:15px; background:white;">
+                        <div class="calc-grid">
+                            <button class="btn btn-ghost" onclick="calcAppend('7')">7</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('8')">8</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('9')">9</button>
+                            <button class="btn btn-warning" onclick="calcOp('/')">÷</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('4')">4</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('5')">5</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('6')">6</button>
+                            <button class="btn btn-warning" onclick="calcOp('*')">×</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('1')">1</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('2')">2</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('3')">3</button>
+                            <button class="btn btn-warning" onclick="calcOp('-')">-</button>
+                            <button class="btn btn-danger" onclick="calcClear()">C</button>
+                            <button class="btn btn-ghost" onclick="calcAppend('0')">0</button>
+                            <button class="btn btn-success" onclick="calcResult()">=</button>
+                            <button class="btn btn-warning" onclick="calcOp('+')">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="data-form-view" class="view-section hidden">
+                <div class="glass-panel" style="padding: 30px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <h3 style="color:var(--primary-purple);" id="form-title">Manage Record</h3>
+                        <button class="btn btn-ghost" onclick="switchView('datasheet-menu')">Close</button>
+                    </div>
+
+                    <div id="search-section" style="margin-bottom: 30px;">
+                        <label>Search Record</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="search-input" placeholder="Search Part No..." oninput="performSearch()">
+                        </div>
+                        <div id="search-results" class="results-list hidden"></div>
+                    </div>
+
+                    <div id="main-form" class="hidden">
+                        <div class="form-grid">
+                            <div><label>Part No</label><input type="text" id="f-partNo"></div>
+                            <div><label>Description</label><input type="text" id="f-description"></div>
+                            <div><label>Quantity</label><input type="number" id="f-quantity"></div>
+                            <div><label>Plan Date</label><input type="date" id="f-planDate"></div>
+
+                            <div class="extra-field">
+                                <label style="color:var(--primary-purple); font-weight:bold;">+ Add Today's Output</label>
+                                <input type="number" id="f-todayQty" placeholder="0" style="border: 2px solid var(--primary-purple); background: #fbf6ff;">
+                            </div>
+                            <div class="extra-field">
+                                <label>Total Completed</label>
+                                <input type="number" id="f-completedQty" readonly style="background:#e0e0e0;">
+                            </div>
+
+                            <div class="extra-field"><label>Status</label>
+                                <select id="f-status">
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                            </div>
+                            <div class="extra-field"><label>Pre OBA</label><input type="text" id="f-preOba"></div>
+                            <div class="extra-field"><label>Packing</label><input type="text" id="f-packing"></div>
+                            <div class="extra-field"><label>After OBA</label><input type="text" id="f-afterOba"></div>
+                            <div class="extra-field"><label>Completed Date</label><input type="date" id="f-completedDate"></div>
+                        </div>
+                        <div style="margin-top: 30px;">
+                            <button id="action-btn" class="btn" style="width: 100%">SAVE</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
