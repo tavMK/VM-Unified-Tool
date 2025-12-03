@@ -1,8 +1,7 @@
-// CONFIGURATION
-// Ensure this URL matches your latest deployment
-const API_URL = "https://script.google.com/macros/s/AKfycbwiU0k79gDabbOXZkJOSKKQfHVkCzA-VQxzVRqDNEBFffbFcurBW6lU-C_-rTniB7NQ/exec"; 
+// --- CONFIGURATION ---
+// PASTE YOUR NEW GOOGLE SCRIPT WEB APP URL HERE
+const API_URL = "https://script.google.com/macros/s/AKfycby7jiogq43tSOL2lqK04Gf731mVT6_3Nsb3R8ObCUBrmhY6JDGxsbTi6Ek2SwIIZbsh/exec"; 
 
-// STATE
 let currentUser = null;
 let currentMode = ''; 
 let selectedId = null;
@@ -16,7 +15,33 @@ window.onload = () => {
     }
 };
 
-// --- AUTH & ROLES ---
+// --- NEW: SESSION LOGGING FUNCTION ---
+// Uses sendBeacon for reliable transmission during tab close
+function logSession(actionType) {
+    if (!currentUser) return;
+
+    const logData = {
+        user: currentUser.name || "Unknown",
+        action: actionType,
+        timestamp: new Date().toString()
+    };
+
+    // Blob is required for sendBeacon to send JSON correctly
+    const blob = new Blob([JSON.stringify(logData)], { type: 'application/json' });
+    
+    // Sends data asynchronously to Google Sheet
+    navigator.sendBeacon(`${API_URL}?action=logSession`, blob);
+}
+
+// --- NEW: DETECT TAB CLOSE / HIDE ---
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+        // Log when user minimizes window, switches tab, or closes browser
+        logSession('Session Background/Close');
+    }
+});
+
+// --- REAL LOGIN FUNCTION ---
 async function handleLogin(e) {
     e.preventDefault();
     showLoading(true);
@@ -25,44 +50,35 @@ async function handleLogin(e) {
     const p = document.getElementById('password').value.trim();
 
     try {
+        // Sends request to Google Sheet to check "Users" tab
         const res = await fetch(`${API_URL}?action=login&username=${u}&password=${p}`);
         const data = await res.json();
 
         if (data.status === 'success') {
             currentUser = data.user;
             localStorage.setItem('vm_user', JSON.stringify(currentUser));
+            
+            // [UPDATED] Log Login
+            logSession('Login');
+            
             showApp();
         } else {
             alert("Login Failed: " + data.message);
         }
-    } catch (err) { alert("Connection Error. Check URL or Internet."); } 
-    finally { showLoading(false); }
+    } catch (err) {
+        alert("Connection Error: " + err);
+    } finally {
+        showLoading(false);
+    }
 }
 
 function logout() {
+    // [UPDATED] Log Logout before clearing data
+    logSession('Logout');
+
     localStorage.removeItem('vm_user');
     currentUser = null;
     location.reload();
-}
-
-// --- PERMISSIONS ---
-function applyUserRole() {
-    const role = currentUser.role;
-    const cardMaster = document.getElementById('card-master');
-    const cardAdd = document.getElementById('card-add');
-    const cardDelete = document.getElementById('card-delete');
-
-    // Reset visibility
-    if(cardMaster) cardMaster.classList.remove('hidden');
-    if(cardAdd) cardAdd.classList.remove('hidden');
-    if(cardDelete) cardDelete.classList.remove('hidden');
-
-    // HIDE items if User is "UpdateOnly"
-    if (role === 'UpdateOnly') {
-        if(cardMaster) cardMaster.classList.add('hidden');
-        if(cardAdd) cardAdd.classList.add('hidden');
-        if(cardDelete) cardDelete.classList.add('hidden');
-    }
 }
 
 // --- DATA SYNC ---
@@ -114,7 +130,6 @@ function openForm(mode) {
         btn.className = "btn btn-success";
         btn.onclick = saveRecord;
     } else {
-        // Update or Delete
         searchSec.classList.remove('hidden');
         mainForm.classList.add('hidden');
         extraFields.forEach(el => el.classList.remove('hidden'));
@@ -123,7 +138,7 @@ function openForm(mode) {
 
         if (mode === 'delete') {
             document.getElementById('form-title').textContent = 'Delete Plan';
-            btn.textContent = "DELETE PERMANENTLY";
+            btn.textContent = "DELETE RECORD";
             btn.className = "btn btn-danger";
             btn.onclick = deleteRecord;
         } else {
@@ -180,7 +195,6 @@ function populateForm(item) {
     document.getElementById('f-completedDate').value = formatDate(item.completedDate);
 }
 
-// --- SAVE LOGIC ---
 async function saveRecord() {
     const currentTotal = parseInt(document.getElementById('f-completedQty').value) || 0;
     const addedToday = parseInt(document.getElementById('f-todayQty').value) || 0;
@@ -227,28 +241,19 @@ async function saveRecord() {
     finally { showLoading(false); }
 }
 
-// --- DELETE LOGIC (FIXED) ---
 async function deleteRecord() {
-    if(!confirm("Delete this record permanently?")) return;
+    if(!confirm("Delete permanently?")) return;
     if(!selectedId) return alert("No selection");
-    
     showLoading(true);
     try {
-        // FIX: Added method: 'POST' and body: JSON.stringify({}) 
-        // This forces the request to go to doPost() in Google Apps Script
-        const res = await fetch(`${API_URL}?action=deletePlan&id=${selectedId}`, {
-            method: 'POST',
-            body: JSON.stringify({}) 
-        });
+        const res = await fetch(`${API_URL}?action=deletePlan&id=${selectedId}`);
         const r = await res.json();
         if(r.status === 'success') {
-            alert("Deleted Successfully");
+            alert("Deleted");
             switchView('datasheet-menu');
             refreshData();
-        } else {
-            alert("Error: " + r.message);
         }
-    } catch(e) { alert("Connection Error: " + e); } 
+    } catch(e) { alert(e); } 
     finally { showLoading(false); }
 }
 
@@ -286,11 +291,9 @@ function calcResult() { try{document.getElementById('calc-display').value=eval(d
 function formatDate(d) { if(!d)return ''; const x=new Date(d); return isNaN(x)?d:x.toISOString().split('T')[0]; }
 function resetForm() { document.querySelectorAll('input').forEach(e => {if(e.id!=='search-input')e.value=''}); document.getElementById('search-results').innerHTML=''; }
 function showLoading(s) { document.getElementById('loading-overlay').classList.toggle('hidden', !s); }
-function showApp() { 
-    document.getElementById('login-view').classList.add('hidden'); 
-    document.getElementById('app-wrapper').classList.remove('hidden'); 
-    document.getElementById('display-username').textContent = currentUser.name;
-    document.getElementById('display-role').textContent = currentUser.role;
-    applyUserRole(); 
-    refreshData(); 
+function showApp() { document.getElementById('login-view').classList.add('hidden'); document.getElementById('app-wrapper').classList.remove('hidden'); refreshData(); }
+// Update display user info
+if(currentUser && document.getElementById('display-username')) {
+    document.getElementById('display-username').textContent = currentUser.name || "User";
+    document.getElementById('display-role').textContent = currentUser.role || "Operator";
 }
